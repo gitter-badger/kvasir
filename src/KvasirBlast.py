@@ -114,6 +114,22 @@ def blast_vs_db(query, db):
         result = re.split(r'[,\n]', out.rstrip())
         return [result[i:i+4] for i in range(len(result))[0::4]]
 
+def blastp_vs_db(query, db):
+    """
+    Blast `subject` (fasta file) against `db` (blast db). 
+    Returns list of lists, each `[qseqid, sseqid, pident, length]`   
+    """
+    out = Popen(
+        ['blastp',
+        '-query', query,
+        '-db', db,
+        '-outfmt', '10 qseqid sseqid pident length',
+        ], stdout=PIPE
+    ).communicate()[0]
+    if out:
+        result = re.split(r'[,\n]', out.rstrip())
+        return [result[i:i+4] for i in range(len(result))[0::4]]
+
 def core_hgt_blast(perc_identity='99'):
     """
     Blasts all core genomes against core db
@@ -213,17 +229,19 @@ def other_blast():
 if __name__ == '__main__':
     import sys
     kv.mongo_init('pacbio2')
-    os.chdir('/Users/KBLaptop/computation/kvasir/data/output/pacbio2/')
+    os.chdir('/Users/KBLaptop/computation/tmp/blast_tests')
     # kv.mongo_init(sys.argv[1])
     # os.chdir('output/{}/'.format(sys.argv[1]))
-    make_blast_db('core')
-    make_blast_db('other')
-    hits_reset()
-    hgt_blast(perc_identity='90')
-    hgt_blast(perc_identity='95')
-    hgt_blast(perc_identity='99')
-    blast_to_db(perc_identity='90')
-    blast_to_db(perc_identity='95')
-    blast_to_db(perc_identity='99')
+    # make_blast_db('core')
+    # make_blast_db('other')
+    # hits_reset()
+    # hgt_blast(perc_identity='90')
+    # hgt_blast(perc_identity='95')
+    # hgt_blast(perc_identity='99')
+    # blast_to_db(perc_identity='90')
+    # blast_to_db(perc_identity='95')
+    # blast_to_db(perc_identity='99')
     
-    other_blast()
+    # other_blast()
+    
+    print blastp_vs_db("Arthro RUSTI subregion 1 translation.fasta", "dairy")

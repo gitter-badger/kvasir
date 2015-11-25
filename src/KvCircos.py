@@ -132,8 +132,8 @@ def gc_circos(gb_folder):
     type  = line
 
     file  = GC/gc_{}.txt
-    r1    = 0.95r
-    r0    = 1.05r
+    r1    = 0.80r
+    r0    = 1.00r
     max   = {}
     min   = {}
 
@@ -143,15 +143,23 @@ def gc_circos(gb_folder):
     <rules>
     <rule>
     condition    = var(value) > {}
-    color = dgreen
+    color = green
+    </rule>
+    <rule>
+    condition    = var(value) > {}
+    color = blue
     </rule>
     <rule>
     condition    = var(value) < {}
-    color = dred
+    color = red
+    </rule>
+    <rule>
+    condition    = var(value) < {}
+    color = purple
     </rule>
     </rules>
     </plot>\n
-    """.format(f[:-13], stats[1], stats[0], stats[2]+stats[3], stats[2]-stats[3])
+    """.format(f[:-13], stats[1], stats[0], stats[2]+2*stats[3], stats[2]+stats[3], stats[2]-2*stats[3], stats[2]-stats[3])
                 )
         out_handle.write('</plots>\n')
 
@@ -166,8 +174,9 @@ if __name__ == '__main__':
     #         print f
     #         get_karyotype('validated_gbk/{}'.format(f))
 
-    get_links(perc_identity='95')
-    get_links(perc_identity='90')
+    # get_links(perc_identity='95')
+    # get_links(perc_identity='90')
+    get_links(group=3)
 
     # gc_circos('validated_gbk/')
 
