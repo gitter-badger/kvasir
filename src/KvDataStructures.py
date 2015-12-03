@@ -30,6 +30,9 @@ class mongo_iter(object):
 client = MongoClient()
 db = None
 
+def clean_name(string):
+    return string.replace(' ', '_').replace(',','').replace('.','')
+
 def parse_genbank_name(some_genbank):
     parsed = re.search(r"([A-Za-z]+)_([A-Za-z]+)_([\w-]+)_validated\.gb", some_genbank)
     return (parsed.group(1), parsed.group(2), parsed.group(3))

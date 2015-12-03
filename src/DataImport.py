@@ -3,11 +3,11 @@
 # for Dutton Lab, Harvard Center for Systems Biology, Cambridge MA
 # Unless otherwise indicated, licensed under GNU Public License (GPLv3)
 
-'''
+"""
 This script is designed to import data from a genbank file and
 write it to a mongoDB database. Must have Mongod running, in terminal:
 `mongod --dbpath path/to/db`.
-'''
+"""
 
 import re, os
 from Bio import SeqIO
@@ -17,15 +17,21 @@ import KvDataStructures as kv
 
 
 def import_file(some_genbank, collection):
+    """
+    Import records from `some_genbank` into Mongo `collection`
+    * Imports each coding sequence (CDS) as  document of {'type':'gene'}
+    * Imports up to one 16S rRNA sequences as document of {'type':'16S'}
+    * Each document has info on species, contig and location, DNA sequence and (for CDS) amino acid sequence
+    * Each gene in genbank file MUST have `locus_tag` feature. If it doesn't, use `add_locus_tags()`
+        * Note - `add_locus_tags()` doesn't exist yet, will be similar to `FixGbk.validate_gbk()`
+    """
     with open(some_genbank, 'r') as open_file:
-        current_species = get_species_name(some_genbank)
         collection = kv.get_collection(collection)
-
-        print 'Working on importing {0}'.format(current_species)
 
         # Each "record" in genbank file is read, corresponds to individual contigs
         for record in SeqIO.parse(open_file, 'gb'):
-            current_contig = get_contig(record.name)
+            current_contig = kv.clean_name(record.name)
+            current_species = kv.clean_name(record.annotations['source'])
 
             print "Importing {}".format(current_contig)
             ssu_gene = get_16S(record)
@@ -39,9 +45,9 @@ def import_file(some_genbank, collection):
                         'end':parsed_location[1],
                         'strand':parsed_location[2],
                     },
+                    'locus_tag':ssu_gene[0].qualifiers['locus_tag'][0],
                     'annotation':ssu_gene[0].qualifiers['product'][0],
                     'dna_seq':ssu_gene[1],
-                    'kvtag':ssu_gene[0].qualifiers['kvtag'][0],
                     'type':'16S'
                     }
                 print "adding 16S gene!"
@@ -51,6 +57,14 @@ def import_file(some_genbank, collection):
             for feature in record.features:
                 if feature.type == 'CDS':
                     parsed_location = kv.get_gene_location(feature.location)
+                    try:
+                        locus_tag = feature.qualifiers['locus_tag'][0]
+                    except Exception, e:
+                        locus_tag = None
+                        print e
+                        print record.features
+
+
                     gene_record = {
                         'species':current_species,
                         'location':{
@@ -60,7 +74,7 @@ def import_file(some_genbank, collection):
                             'strand':parsed_location[2],
                             'index':None
                         },
-                        'kvtag':feature.qualifiers['kvtag'][0],
+                        'locus_tag':locus_tag,
                         'annotation':feature.qualifiers['product'][0],
                         'dna_seq':get_dna_seq(feature, record),
                         'aa_seq':feature.qualifiers['translation'][0],
@@ -89,12 +103,21 @@ def get_16S(gbk_record):
                     return None
 
 def get_species_name(path_to_genbank):
+    """
+    Deprecated, do not use.
+    Instead use `record.annotations['source']`
+    Use kv.clean_name() to remove spaces and commas
+    """
     import re
     name = re.search(r"validated_gbk/(.+)_validated\.gb", path_to_genbank)
     return name.group(1)
 
-# Need to fix search! Only returns "contig"...
 def get_contig(record_name):
+    """
+    Deprecated - do not use
+    Instead use `record.name`
+    Use kv.clean_name() to remove spaces and commas
+    """
     import re
     parse_contig = re.search(r'kvc_(\d\d\d)', record_name)
     return parse_contig.group(1)
@@ -106,3 +129,7 @@ def import_folder(genbank_folder):
         current_file = os.path.join(genbank_folder, a_file)
         print 'importing {0}!'.format(current_file)
         import_file(current_file)
+
+if __name__ == '__main__':
+    kv.mongo_init('pacbio2_img')
+    import_file('/Users/KBLaptop/computation/kvasir/data/input/pacbio2_IMG.gbk', 'core')
