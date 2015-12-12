@@ -31,11 +31,28 @@ def import_file(some_genbank, collection):
         # Each "record" in genbank file is read, corresponds to individual contigs
         for record in SeqIO.parse(open_file, 'gb'):
             current_contig = kv.clean_name(record.name)
-            current_species = kv.clean_name(record.annotations['source'])
+            try:
+                current_species = kv.clean_name(record.annotations['source'])
+            except KeyError:
+                name = re.search(r'\w+\/(.+)\.\w+$', some_genbank)
+                current_species = kv.clean_name(name.group(1))
+                
+
+            collection.insert_one({
+                'species':current_species,
+                'contig':current_contig,
+                'dna_seq':str(record.seq),
+                'type':'contig'
+                })
 
             print "Importing {}".format(current_contig)
             ssu_gene = get_16S(record)
             if ssu_gene:
+                try:
+                    locus_tag = ssu_gene[0].qualifiers['locus_tag'][0]
+                except KeyError:
+                    locus_tag = None
+                
                 parsed_location = kv.get_gene_location(ssu_gene[0].location)
                 gene_record = {
                     'species':current_species,
@@ -45,7 +62,7 @@ def import_file(some_genbank, collection):
                         'end':parsed_location[1],
                         'strand':parsed_location[2],
                     },
-                    'locus_tag':ssu_gene[0].qualifiers['locus_tag'][0],
+                    'locus_tag':locus_tag,
                     'annotation':ssu_gene[0].qualifiers['product'][0],
                     'dna_seq':ssu_gene[1],
                     'type':'16S'
@@ -59,11 +76,8 @@ def import_file(some_genbank, collection):
                     parsed_location = kv.get_gene_location(feature.location)
                     try:
                         locus_tag = feature.qualifiers['locus_tag'][0]
-                    except Exception, e:
+                    except KeyError:
                         locus_tag = None
-                        print e
-                        print record.features
-
 
                     gene_record = {
                         'species':current_species,
@@ -122,14 +136,20 @@ def get_contig(record_name):
     parse_contig = re.search(r'kvc_(\d\d\d)', record_name)
     return parse_contig.group(1)
 
-def import_folder(genbank_folder):
+def import_folder(genbank_folder, collection):
     import os
     print 'we\'re importing a folder now!'
     for a_file in os.listdir(genbank_folder):
-        current_file = os.path.join(genbank_folder, a_file)
-        print 'importing {0}!'.format(current_file)
-        import_file(current_file)
+        if not a_file.startswith('.'):
+            current_file = os.path.join(genbank_folder, a_file)
+            print 'importing {0}!'.format(current_file)
+            import_file(current_file, collection)
 
 if __name__ == '__main__':
     kv.mongo_init('pacbio2_img')
-    import_file('/Users/KBLaptop/computation/kvasir/data/input/pacbio2_IMG.gbk', 'core')
+    os.chdir('/Users/KBLaptop/computation/kvasir/data/input/')
+    # import_file('/Users/KBLaptop/computation/tmp/blast_tests/IMG_cheese-milk-dairy_30894_partial.gbk', 'dairy')
+    
+    kv.get_collection('other_cheese').drop()
+    print kv.get_collections()
+    import_folder('other/', 'other_cheese')

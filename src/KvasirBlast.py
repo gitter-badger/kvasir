@@ -17,6 +17,7 @@ from pymongo.cursor import Cursor
 from KvasirHGT import core_hgt_groups
 import KvDataStructures as kv
 from DataImport import get_dna_seq
+from KvasirPhylo import get_list_from_tree
 
 def make_blast_db(source, name=None, remove_source=True):
     """
@@ -76,6 +77,72 @@ def make_blast_db(source, name=None, remove_source=True):
         ['makeblastdb',
         '-in', output_fasta,
         '-dbtype', 'nucl',
+        '-out', 'blast_databases/{0}'.format(name),
+        '-title', name,
+        ]
+    ).wait() # waits for this operation to terminate before moving on
+
+    if remove_source:
+        os.remove(output_fasta)
+
+def make_prot_blast_db(source, name=None, remove_source=True):
+    """
+    Produces BLAST database from `source`
+    Optional - provide name (defaults to `source`)
+    Set remove_source=False to keep fasta file (if created)
+    
+    Source types:
+    - fasta file (use path, must end with `.faa`)
+    - Mongo collection (use name of collection)
+    - list of dicts containing at least keys `species`, `_id`, `aa_seq`
+    - Mongo cursor eg. `collection.find({'key':value})`
+    """
+    # If there's no directory for blast db's, create one
+    if not os.path.isdir('blast_databases/'):
+        os.makedirs('blast_databases')
+    
+    output_fasta = None
+    
+    if os.path.isfile(source):
+        # Input is fasta file?
+        if source.endswith('.faa'):
+            output_fasta = source
+            if not name:
+                name = os.path.basename(source)[:-4]
+            remove_source = False
+        else:
+            print "Not a valid file type, use .faa"
+
+    else:
+        output_fasta = '{0}_all.fasta'.format(kv.db.name)     
+        genes = None
+        with open(output_fasta, 'w+') as output_handle:
+            if source in kv.get_collections():
+                genes = kv.get_collection(source).find()
+                if not name:
+                    name = source
+            elif type(source) == list:
+                genes = source
+            elif type(source) == Cursor:
+                genes = source
+        
+            for gene in genes:
+                output_handle.write('>{0}|{1}\n{2}\n'.format(
+                    gene['species'],
+                    gene['_id'],
+                    gene['aa_seq'],
+                    )
+                )
+
+    while not name:
+        name = str(raw_input("enter name for BLAST database: "))
+
+    # calls makeblastdb from shell
+    print "making a database!"
+    Popen(
+        ['makeblastdb',
+        '-in', output_fasta,
+        '-dbtype', 'prot',
         '-out', 'blast_databases/{0}'.format(name),
         '-title', name,
         ]
@@ -315,12 +382,13 @@ def parse_blast(blast_results):
         #         )
 
 def make_draw_template():
-    with open('species_list.txt', 'r') as f, open('draw_template.txt', 'w+') as o:
+    
+    with open('draw_template.txt', 'w+') as o:
+        l = get_list_from_tree('/Users/KBLaptop/computation/tmp/blast_tests/ML_tree.newick')
         collection = kv.get_collection('all_cheese')
         queries = ['Transcriptional_regulator_AraC_family_CDS_translation','iron-chelator_utilization_protein_CDS_translation','Putative_transport_protein/putative_regulator_CDS_translation','Vitamin_B12_ABC_transporter_B12-binding_component_BtuF_CDS_translation','Vitamin_B12_ABC_transporter_B12-binding_component_BtuF_CDS_translation','ABC-type_Fe3+-siderophore_transport_system_permease_component_CDS_translation','ABC-type_Fe3+-siderophore_transport_system_permease_2_component_CDS_translation','ABC-type_Fe3+-siderophore_transport_system_ATPase_component_CDS_translation','Transport_ATP-binding_protein_CydCD_CDS_translation','ABC_transporter_ATP-binding_protein_CDS_translation','Transcriptional_regulator_AraC_family_CDS_translation',]
 
-        for line in f:
-            species = line.strip()
+        for species in l:
             print species
             o.write('{}\n'.format(species))
             
@@ -345,11 +413,11 @@ def make_draw_template():
 if __name__ == '__main__':
     # import sys
     kv.mongo_init('pacbio2')
-    os.chdir('/Users/KBLaptop/computation/tmp/blast_tests')
+    os.chdir('/Users/KBLaptop/computation/tmp/blast_tests/')
     # kv.mongo_init(sys.argv[1])
     # os.chdir('output/{}/'.format(sys.argv[1]))
     # make_blast_db('core')
-    # make_blast_db('other')
+    make_prot_blast_db('other')
     # hits_reset()
     # hgt_blast(perc_identity='90')
     # hgt_blast(perc_identity='95')
@@ -360,8 +428,8 @@ if __name__ == '__main__':
     
     # other_blast()
     # scratch_import("IMG_cheese-milk-dairy_30894.gbk")
-    # blast_results = blastp_vs_db("Arthro RUSTI subregion 1 translation.fasta", "dairy")
+    # blast_results = blastp_vs_db("Arthro RUSTI subregion 1 translation.fasta", "other")
     # parse_blast(blast_results)
 
     # tree_from_gb("IMG_cheese-milk-dairy_30894.gbk")
-    make_draw_template()
+    # make_draw_template()

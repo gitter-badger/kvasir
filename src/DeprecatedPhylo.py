@@ -42,7 +42,7 @@ def get_gene_distance(seq_1, seq_2):
     return q.distance(t)
 
 def output_distance_matrix(core=False, to_file=True):
-    all_species = kv.get_collection('core').distinct('species'))
+    all_species = kv.get_collection('core').distinct('species')
     if core:
         pass
     else:
@@ -432,15 +432,9 @@ def plot_many(list_of_species_pairs):
     # plt.savefig('/Users/KBLaptop/Desktop/try.pdf')
 
 if __name__ == '__main__':
-    kv.mongo_init('more_genomes')
-    os.chdir('/Users/KBLaptop/computation/kvasir/data/output/more_genomes/')
-    ls = kv.get_species_collections()
-    print ls
-    ls.remove('Arthrobacter_arilaitensis_Re117')
-    pairs = []
-    for pair in combinations(ls, 2):
-        pairs.append((pair[0], pair[1]))
-    plot_many(pairs)
+    kv.mongo_init('pacbio2_img')
+    os.chdir('/Users/KBLaptop/computation/kvasir/data/output/pacbio2_img/')
+    output_all_16S()
 
 
     #     if os.path.isfile('{}_{}.pdf'.format(pair[0], pair[1])):

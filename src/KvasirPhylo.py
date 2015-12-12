@@ -8,11 +8,13 @@ import os
 import KvDataStructures as kv
 import pandas as pd
 
+from re import sub
 from itertools import combinations_with_replacement
 from subprocess import Popen, PIPE
 from skbio import DNA
 from skbio import DistanceMatrix
-from skbio import tree
+from skbio import read
+from skbio.tree import TreeNode
 from skbio.alignment import StripedSmithWaterman
 
 def get_gene_distance(seq_1, seq_2):
@@ -140,9 +142,17 @@ def add_ssu(supp_file):
             print kv.get_collection('16S').find_one({'species':ssu_df['strain'][i]})
 
 def get_list_from_tree(newick_file):
-    pass
+    tree = read(newick_file, format='newick', into=TreeNode)
+    l = []
+    for node in tree.preorder():
+        if not node:
+            l.append(sub('_$', '', sub('_reversed', '', sub('\W+', '_', node.name))))
+
+    return l
 
 
 if __name__ == '__main__':
-    os.chdir('/Users/KBLaptop/computation/kvasir/data/output/reorg/')
-    kv.mongo_init('reorg')
+    os.chdir('/Users/KBLaptop/computation/tmp/blast_tests/')
+    # kv.mongo_init('pacbio2_img')
+    print get_list_from_tree('ML_tree.newick')
+

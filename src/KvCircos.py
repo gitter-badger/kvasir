@@ -42,6 +42,30 @@ def get_karyotype(some_gbk):
                 else:
                     break
 
+def get_karyotypes(mongo_collection):
+    """
+    Make karyotype for each species in Mongo collection
+    """
+    if not os.path.isdir('circos/karyotypes/'):
+        os.makedirs('circos/karyotypes/')
+    if not os.path.isdir('circos/karyotypes/'):
+            os.makedirs('circos/karyotypes/')
+    
+    all_species = mongo_collection.distinct('species')
+    for species in all_species:
+        color = [np.random.randint(0,255), np.random.randint(0,255), np.random.randint(0,255)]
+        with open('circos/karyotypes/karyotype_{}.txt'.format(species), 'w+') as karyotype:
+            for contig in mongo_collection.find({'species':species, 'type':'contig'}):
+                karyotype.write('chr - {0}{1} {2} {3} {4} {5},{6},{7}\n'.format(
+                    contig['species'],
+                    contig['contig'],
+                    contig['contig'],
+                    '1',
+                    len(contig['dna_seq']),
+                    *color
+                    )
+                )
+
 def get_links(group=None, perc_identity='99'):
     hits_collection = kv.get_collection('hits')
     group_hits = None
@@ -55,9 +79,9 @@ def get_links(group=None, perc_identity='99'):
     
     with open(out_name, 'w+') as out_handle:
         for species in hits_collection.find():
-            print species
             try:
                 all_hits = species['core_hits_{}'.format(perc_identity)]
+                print 'here'
                 hits_to_write = None
                 if group:
                     hits_to_write = {gene:all_hits[gene] for gene in all_hits if (species['species'], gene) in group_hits}
@@ -82,13 +106,13 @@ def get_links(group=None, perc_identity='99'):
                                 )
                             )        
             except KeyError:
+                print 'fuck'
                 pass
 
 
 def get_gc(some_gbk):
     """
     Get GC content for contigs in genbank file, output file for circs line plot
-
     """    
     with open (some_gbk, 'r') as file_handle:
         gc_points = []
@@ -164,8 +188,9 @@ def gc_circos(gb_folder):
         out_handle.write('</plots>\n')
 
 if __name__ == '__main__':
-    os.chdir('/Users/KBLaptop/computation/kvasir/data/output/pacbio2/')
-    kv.mongo_init('pacbio2')
+    os.chdir('/Users/KBLaptop/computation/kvasir/data/output/pacbio2_img/')
+    kv.mongo_init('pacbio2_img')
+    # get_karyotypes(kv.get_collection('core'))
 
     # if not os.path.isdir('circos'):
     #     os.makedirs('circos')
@@ -173,10 +198,10 @@ if __name__ == '__main__':
     #     if f.endswith('.gb'):
     #         print f
     #         get_karyotype('validated_gbk/{}'.format(f))
-
+    get_links(perc_identity='95')
     # get_links(perc_identity='95')
     # get_links(perc_identity='90')
-    get_links(group=3)
+    # get_links(group=3)
 
     # gc_circos('validated_gbk/')
 
